@@ -1,1 +1,1 @@
-# gcp-terraform
+Provision GCP resources using Terraform.
