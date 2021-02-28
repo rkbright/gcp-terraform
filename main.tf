@@ -2,8 +2,8 @@ provider "google" {
   credentials = "terraform-key.json"
 
   project = "terraform-course-306221"
-  region  = "uscentral1"
-  zone    = "uscentral1-c"
+  region  = "us-central1"
+  zone    = "us-central1-c"
 }
 
 resource "google_compute_network" "vpc_network" {
