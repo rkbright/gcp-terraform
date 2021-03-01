@@ -1,57 +1,48 @@
-module "network" {
-  source  = "terraform-google-modules/network/google"
-  version = "2.1.1"
+provider "google" {
+  version = "3.5.0"
 
-  network_name = "my-vpc-network"
-  project_id   = var.project
+  credentials = file("terraform-key.json")
 
-  subnets = [
-    {
-      subnet_name   = "subnet-01"
-      subnet_ip     = var.cidr
-      subnet_region = var.region
-    },
-  ]
+  project = var.project
+  region  = var.region
+  zone    = var.zone
+}
 
-  secondary_ranges = {
-    subnet-01 = []
+resource "google_compute_network" "vpc_network" {
+  name = "new-terraform-network"
+}
+resource "google_compute_instance" "vm_instance" {
+  name         = "terraform-host"
+  metadata_startup_script = file("startup.sh")
+  machine_type = "f1-micro"
+  tags         = ["web"]
+  zone         = "us-central1-a"
+  boot_disk {
+    initialize_params {
+      image = "centos-cloud/centos-7"
+    }
+  }
+
+  network_interface {
+    network = google_compute_network.vpc_network.name
+    access_config {
+    }
   }
 }
 
-module "network_routes" {
-  source       = "terraform-google-modules/network/google//modules/routes"
-  version      = "2.1.1"
-  network_name = module.network.network_name
-  project_id   = var.project
+resource "google_compute_firewall" "default" {
+  name    = "test-firewall"
+  network = google_compute_network.vpc_network.name
 
-  routes = [
-    {
-      name              = "egress-internet"
-      description       = "Route through IGW to internet"
-      destination_range = "0.0.0.0/0"
-      tags              = "egress-inet"
-      next_hop_internet = "true"
-    },
-  ]
-}
+  allow {
+    protocol = "icmp"
+  }
 
-module "network_fabric-net-firewall" {
-  source                  = "terraform-google-modules/network/google//modules/fabric-net-firewall"
-  version                 = "1.1.0"
-  project_id              = var.project
-  network                 = module.network.network_name
-  internal_ranges_enabled = true
-  internal_ranges         = ["10.0.0.0/16"]
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "8080", "1000-2000"]
+  }
 
-}
-
-resource "google_compute_address" "vm_static_ip" {
-  name = "terraform-static-ip"
-}
-
-provider "google" {
-  project     = "terraform-course-306221"
-  region      = "us-central1"
-  zone        = "us-central1-c"
-  credentials = "terraform-key.json"
+  target_tags   = ["web"]
+  source_ranges = ["0.0.0.0/0"]
 }
